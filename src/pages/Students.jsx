@@ -38,7 +38,7 @@ const Students = () => {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const studentsPerPage = 2;
+  const studentsPerPage = 10;
 
   const [formData, setFormData] = useState({
     firstName: "",

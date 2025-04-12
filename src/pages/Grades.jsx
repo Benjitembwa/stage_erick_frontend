@@ -18,9 +18,11 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import {
   createGrade,
+  deleteGrade,
   fetchAllCourses,
   fetchAllGrades,
   fetchAllStudents,
+  updateGrade,
 } from "../api/apiService";
 
 const Grades = () => {
@@ -189,10 +191,18 @@ const Grades = () => {
         semester: formData.semester,
       };
 
-      const res = await createGrade(gradeToSend);
-      setLoading(true);
+      if (isEditModalOpen) {
+        // Mise à jour
+        await handleUpdateGrade(currentGrade._id, gradeToSend);
+        console.log("Étudiant modifié avec succès");
+      } else {
+        // Ajout
+        await createGrade(gradeToSend);
+        console.log("Étudiant ajouté avec succès");
+      }
 
       closeModal();
+      setLoading(true);
     } catch (error) {
       const message =
         error.response?.data?.error || "Erreur lors de l'ajout de la note.";
@@ -201,9 +211,33 @@ const Grades = () => {
   };
 
   // Supprimer une note
-  const handleDelete = (gradeId) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette note ?")) {
-      setGrades((prev) => prev.filter((grade) => grade.id !== gradeId));
+  const handleDelete = async (gradeId) => {
+    try {
+      await deleteGrade(gradeId);
+      setLoading(true);
+    } catch (err) {
+      console.error("Erreur lors de la suppression :", err);
+      alert(
+        err?.response?.data?.error || "Échec de la suppression de l'étudiant."
+      );
+    }
+  };
+
+  const handleUpdateGrade = async () => {
+    try {
+      const payload = {
+        promotionId: formData.promotionId,
+        semester: formData.semester,
+        courseId: formData.courseId,
+        studentId: formData.studentId,
+        grade: formData.grade,
+      };
+      await updateGrade(currentGrade._id, payload);
+      console.log("Note mise à jour avec succès !");
+      closeModal();
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour de la note :", error);
+      alert(error.response?.data?.error || "Une erreur est survenue.");
     }
   };
 
@@ -396,7 +430,7 @@ const Grades = () => {
                               <FiEdit2 />
                             </button>
                             <button
-                              onClick={() => handleDelete(grade.id)}
+                              onClick={() => handleDelete(grade._id)}
                               className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/30"
                             >
                               <FiTrash2 />

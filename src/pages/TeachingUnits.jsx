@@ -13,7 +13,12 @@ import {
   FiCreditCard,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
-import { addTeachingUnit, fetchTeachingUnits } from "../api/apiService";
+import {
+  addTeachingUnit,
+  deleteTeachingUnits,
+  fetchTeachingUnits,
+  updateTeachingUnits,
+} from "../api/apiService";
 
 const TeachingUnits = () => {
   // États pour la gestion des données
@@ -136,10 +141,15 @@ const TeachingUnits = () => {
         semester: formData.semester,
       };
 
-      const response = await addTeachingUnit(payload);
-      console.log("UE ajoutée :", response.data);
+      if (isEditModalOpen) {
+        // Mise à jour
+        await handleUpdateUE(currentUnit._id, payload);
+        console.log("Étudiant modifié avec succès");
+      } else {
+        const response = await addTeachingUnit(payload);
+        console.log("UE ajoutée :", response.data);
+      }
 
-      // Notification ou feedback visuel
       console.log("UE ajoutée avec succès !");
       setLoading(true);
 
@@ -165,11 +175,32 @@ const TeachingUnits = () => {
   };
 
   // Supprimer une UE
-  const handleDelete = (unitId) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette UE ?")) {
-      // Vérifier s'il y a des cours associés
+  const handleDelete = async (teachingUnitsId) => {
+    try {
+      console.log(teachingUnitsId);
+      await deleteTeachingUnits(teachingUnitsId);
+      setLoading(true);
+    } catch (err) {
+      console.error("Erreur lors de la suppression :", err);
+      alert(err?.response?.data?.error || "Échec de la suppression du cours.");
+    }
+  };
 
-      setTeachingUnits((prev) => prev.filter((unit) => unit.id !== unitId));
+  const handleUpdateUE = async () => {
+    try {
+      const payload = {
+        name: formData.name,
+        unitId: formData.unitId,
+        promotion: formData.promotionId,
+        semester: formData.semester,
+      };
+
+      await updateTeachingUnits(currentUnit._id, payload);
+      setLoading(true);
+      closeModal();
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour de l'UE :", error);
+      alert(error.response?.data?.error || "Une erreur est survenue.");
     }
   };
 
@@ -340,7 +371,7 @@ const TeachingUnits = () => {
                               <FiEdit2 />
                             </button>
                             <button
-                              onClick={() => handleDelete(unit.id)}
+                              onClick={() => handleDelete(unit._id)}
                               className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/30"
                             >
                               <FiTrash2 />

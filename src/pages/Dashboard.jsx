@@ -22,44 +22,44 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { fetchAllStats } from "../api/apiService";
 
 const Dashboard = () => {
-  const [stats, setStats] = useState({
-    totalStudents: 0,
-    totalCourses: 0,
-    totalTeachingUnits: 0,
-    passedStudents: 0,
-    failedStudents: 0,
-  });
-
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [barChartData, setBarChartData] = useState([]);
+  const [pieChartData, setPieChartData] = useState([]);
 
   useEffect(() => {
-    // Simuler un chargement de données
-    setTimeout(() => {
-      setStats({
-        totalStudents: 245,
-        totalCourses: 32,
-        totalTeachingUnits: 16,
-        passedStudents: 189,
-        failedStudents: 56,
-      });
-      setLoading(false);
-    }, 1000);
+    const fetchStatistics = async () => {
+      try {
+        const res = await fetchAllStats();
+        console.log("Réponse brute de l'API:", res); // Ajoute ce log
+
+        const data = res;
+
+        setStats({
+          totalStudents: data.totalStudents,
+          totalCourses: data.totalCourses,
+          totalTeachingUnits: data.totalTeachingUnits,
+          passedStudents: data.passedStudents,
+          failedStudents: data.failedStudents,
+        });
+        console.log(data.perPromotion);
+        setBarChartData(data.promotionStats); // structure : [{ name: "L1 LMD", students: X, passed: Y }]
+        setPieChartData([
+          { name: "Validés l'année", value: data.passedStudents },
+          { name: "Non validés l'année", value: data.failedStudents },
+        ]);
+
+        setLoading(false);
+      } catch (err) {
+        console.error("Erreur lors du chargement des statistiques:", err);
+      }
+    };
+
+    fetchStatistics();
   }, []);
-
-  // Données pour les graphiques
-  const barChartData = [
-    { name: "Promo 2020", students: 45, passed: 38 },
-    { name: "Promo 2021", students: 60, passed: 52 },
-    { name: "Promo 2022", students: 75, passed: 62 },
-    { name: "Promo 2023", students: 65, passed: 37 },
-  ];
-
-  const pieChartData = [
-    { name: "Validés", value: stats.passedStudents },
-    { name: "Non validés", value: stats.failedStudents },
-  ];
 
   const COLORS = ["#0088FE", "#FF8042"];
 
@@ -151,7 +151,9 @@ const Dashboard = () => {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-500 dark:text-gray-400">Validés</p>
+                  <p className="text-gray-500 dark:text-gray-400">
+                    Validés l'année
+                  </p>
                   <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
                     {stats.passedStudents}
                   </h3>
@@ -172,7 +174,7 @@ const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-500 dark:text-gray-400">
-                    Non validés
+                    Non validés l'année
                   </p>
                   <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
                     {stats.failedStudents}
@@ -209,7 +211,11 @@ const Dashboard = () => {
                       fill="#8884d8"
                       name="Total Étudiants"
                     />
-                    <Bar dataKey="passed" fill="#82ca9d" name="Validés" />
+                    <Bar
+                      dataKey="passed"
+                      fill="#82ca9d"
+                      name="Validés l'année"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -253,61 +259,6 @@ const Dashboard = () => {
               </div>
             </motion.div>
           </div>
-
-          {/* Dernières Activités */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1 }}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow p-6"
-          >
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
-              Dernières Activités
-            </h3>
-            <div className="space-y-4">
-              {[
-                {
-                  id: 1,
-                  action: "Nouvel étudiant ajouté",
-                  user: "Admin",
-                  time: "10 min ago",
-                },
-                {
-                  id: 2,
-                  action: "Notes mises à jour pour Physique Quantique",
-                  user: "Prof. Mbala",
-                  time: "1h ago",
-                },
-                {
-                  id: 3,
-                  action: "UE Mécanique ajoutée",
-                  user: "Admin",
-                  time: "2h ago",
-                },
-                {
-                  id: 4,
-                  action: "Délibération terminée pour S1 2023",
-                  user: "System",
-                  time: "5h ago",
-                },
-              ].map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex items-start pb-4 border-b border-gray-200 dark:border-gray-700 last:border-0"
-                >
-                  <div className="w-2 h-2 mt-2 rounded-full bg-blue-500"></div>
-                  <div className="ml-3 flex-1">
-                    <p className="text-gray-800 dark:text-gray-200">
-                      {activity.action}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Par {activity.user} · {activity.time}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
         </>
       )}
     </div>

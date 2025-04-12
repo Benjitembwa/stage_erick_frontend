@@ -15,8 +15,10 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import {
   addCourse,
+  deleteCourse,
   fetchAllCourses,
   fetchTeachingUnits,
+  updateCourse,
 } from "../api/apiService";
 
 const Courses = () => {
@@ -164,11 +166,19 @@ const Courses = () => {
     };
 
     try {
-      const result = await addCourse(newCourse);
-      console.log("Cours ajouté avec succès :", result.data);
+      if (isEditModalOpen) {
+        // Mise à jour
+        await handleUpdate(currentCourse._id, newCourse);
+        console.log("Étudiant modifié avec succès");
+      } else {
+        // Ajout
+        const result = await addCourse(newCourse);
+        console.log("Cours ajouté avec succès :", result.data);
+      }
 
       // Tu peux fermer la modale ici, ou réinitialiser le formulaire
       closeModal();
+      setLoading(true);
       // Optionnel : recharger les cours si tu veux les afficher
       // await loadCourses();
     } catch (err) {
@@ -177,9 +187,37 @@ const Courses = () => {
   };
 
   // Supprimer un cours
-  const handleDelete = (courseId) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer ce cours ?")) {
-      setCourses((prev) => prev.filter((course) => course.id !== courseId));
+  const handleDelete = async (courseId) => {
+    try {
+      console.log(courseId);
+      await deleteCourse(courseId);
+      setLoading(true);
+    } catch (err) {
+      console.error("Erreur lors de la suppression :", err);
+      alert(err?.response?.data?.error || "Échec de la suppression du cours.");
+    }
+  };
+
+  const handleUpdate = async () => {
+    try {
+      const payload = {
+        courseCode: formData.courseId,
+        name: formData.name,
+        credits: formData.credits,
+        semester: formData.semester,
+        teachingUnit: formData.teachingUnitId,
+        promotion: formData.promotionId,
+      };
+
+      await updateCourse(currentCourse._id, payload);
+      console.log("Cours mis à jour avec succès !");
+      setLoading(true);
+      closeModal();
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour :", error);
+      alert(
+        error.response?.data?.error || "Erreur lors de la mise à jour du cours."
+      );
     }
   };
 
@@ -324,7 +362,7 @@ const Courses = () => {
                               <FiEdit2 />
                             </button>
                             <button
-                              onClick={() => handleDelete(course.id)}
+                              onClick={() => handleDelete(course._id)}
                               className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/30"
                             >
                               <FiTrash2 />

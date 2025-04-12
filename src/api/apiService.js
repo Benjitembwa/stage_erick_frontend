@@ -62,6 +62,15 @@ export const fetchTeachingUnits = async () => {
   }
 };
 
+export const deleteTeachingUnits = async (teachingUnitsId) => {
+  const res = await axiosInstance.delete(`/teachingUnits/${teachingUnitsId}`);
+  console.log(res);
+  return res.data;
+};
+
+export const updateTeachingUnits = (id, teachingUnitsData) => {
+  return axiosInstance.put(`/teachingUnits/${id}`, teachingUnitsData);
+};
 export const fetchAllCourses = async () => {
   try {
     const response = await axiosInstance.get("/courses");
@@ -80,6 +89,16 @@ export const addCourse = async (courseData) => {
     console.error("Erreur lors de l'ajout du cours:", error);
     throw error.response?.data || { error: "Erreur inconnue" };
   }
+};
+
+export const deleteCourse = async (courseId) => {
+  const res = await axiosInstance.delete(`/courses/${courseId}`);
+  console.log(res);
+  return res.data;
+};
+
+export const updateCourse = (id, courseData) => {
+  return axiosInstance.put(`/courses/${id}`, courseData);
 };
 
 export const fetchCoursesByTeachingUnit = async (teachingUnitId) => {
@@ -113,6 +132,26 @@ export const createGrade = async (gradeData) => {
       "Erreur lors de la création de la note :",
       error.response?.data || error
     );
+    throw error;
+  }
+};
+
+export const deleteGrade = async (gradeId) => {
+  const res = await axiosInstance.delete(`/grades/${gradeId}`);
+  console.log(res);
+  return res.data;
+};
+
+export const updateGrade = (id, gradeData) => {
+  return axiosInstance.put(`/grades/${id}`, gradeData);
+};
+
+export const fetchAllStats = async () => {
+  try {
+    const response = await axiosInstance.get("/stats");
+    return response.data; // Contient success, count, data
+  } catch (error) {
+    console.error("Erreur lors du chargement des cours:", error);
     throw error;
   }
 };
