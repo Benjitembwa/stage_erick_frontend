@@ -91,6 +91,10 @@ const styles = StyleSheet.create({
     fontSize: 10,
     width: "60%",
   },
+  courseCode: {
+    fontSize: 8,
+    color: "#666",
+  },
   courseGrade: {
     fontSize: 10,
     width: "20%",
@@ -139,7 +143,6 @@ const styles = StyleSheet.create({
 
 const BulletinPDF = ({ data }) => {
   const isAnnual = data.semester === "all";
-  const promotionName = `Promotion ${data.promotionId}`; // Dans une vraie app, on aurait le nom complet
 
   return (
     <Document>
@@ -153,20 +156,25 @@ const BulletinPDF = ({ data }) => {
 
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Nom de l'étudiant:</Text>
-            <Text style={styles.infoValue}>{data.studentName}</Text>
+            <Text style={styles.infoValue}>
+              {data.studentName} {data.studentPostName || ""}
+            </Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Matricule:</Text>
+            <Text style={styles.infoValue}>{data.studentIdNumber}</Text>
           </View>
 
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Promotion:</Text>
-            <Text style={styles.infoValue}>{promotionName}</Text>
+            <Text style={styles.infoValue}>{data.promotion}</Text>
           </View>
 
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Période:</Text>
             <Text style={styles.infoValue}>
-              {isAnnual
-                ? "Année académique complète"
-                : `Semestre ${data.semester}`}
+              {isAnnual ? "Année académique complète" : data.semester}
             </Text>
           </View>
         </View>
@@ -181,7 +189,8 @@ const BulletinPDF = ({ data }) => {
             <View key={ue.ueId} style={{ marginBottom: 10 }}>
               <View style={styles.ueHeader}>
                 <Text style={styles.ueName}>
-                  {ue.ueName} (S{ue.semester} - {ue.credits} crédits)
+                  {ue.ueName} ({ue.unitId}) - {ue.semester} - {ue.credits}{" "}
+                  crédits
                 </Text>
                 <Text
                   style={{
@@ -196,7 +205,10 @@ const BulletinPDF = ({ data }) => {
 
               {ue.courses.map((course) => (
                 <View key={course.courseId} style={styles.courseRow}>
-                  <Text style={styles.courseName}>{course.courseName}</Text>
+                  <View style={{ width: "60%" }}>
+                    <Text style={styles.courseName}>{course.courseName}</Text>
+                    <Text style={styles.courseCode}>{course.courseCode}</Text>
+                  </View>
                   <Text
                     style={{
                       ...styles.courseGrade,

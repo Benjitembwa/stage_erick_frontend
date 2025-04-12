@@ -16,13 +16,22 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import BulletinPDF from "../components/BulletinPDF";
+import {
+  fetchAllCourses,
+  fetchAllGrades,
+  fetchAllStudents,
+  fetchTeachingUnits,
+} from "../api/apiService";
+
+// Constantes pour les promotions et semestres
+const PROMOTIONS = ["L1 LMD", "L2 LMD", "L3 LMD", "M1", "M2"];
+const SEMESTERS = ["S1", "S2"];
 
 const Deliberation = () => {
   // États pour la gestion des données
   const [students, setStudents] = useState([]);
   const [courses, setCourses] = useState([]);
   const [teachingUnits, setTeachingUnits] = useState([]);
-  const [promotions, setPromotions] = useState([]);
   const [grades, setGrades] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,147 +49,21 @@ const Deliberation = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Simuler un appel API
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        setLoading(true);
 
-        // Données mockées
-        const mockPromotions = [
-          { id: "1", name: "Promotion 2020", totalCredits: 60 },
-          { id: "2", name: "Promotion 2021", totalCredits: 60 },
-        ];
+        const coursesRes = await fetchAllCourses();
+        console.log(coursesRes.data);
+        const unitsRes = await fetchTeachingUnits();
+        console.log(unitsRes.data);
+        const studentsRes = await fetchAllStudents();
+        console.log(studentsRes.data);
+        const gradesRes = await fetchAllGrades();
+        console.log(gradesRes.data);
 
-        const mockStudents = [
-          {
-            id: "1",
-            firstName: "Jean",
-            lastName: "Kabasele",
-            promotionId: "1",
-          },
-          { id: "2", firstName: "Marie", lastName: "Mbayo", promotionId: "1" },
-        ];
-
-        const mockCourses = [
-          {
-            id: "1",
-            name: "Mécanique Classique",
-            teachingUnitId: "1",
-            credits: 4,
-          },
-          {
-            id: "2",
-            name: "Électromagnétisme",
-            teachingUnitId: "1",
-            credits: 4,
-          },
-          {
-            id: "3",
-            name: "Algèbre Linéaire",
-            teachingUnitId: "2",
-            credits: 5,
-          },
-          {
-            id: "4",
-            name: "Physique Quantique I",
-            teachingUnitId: "3",
-            credits: 7,
-          },
-        ];
-
-        // 2. MockTeachingUnits sans crédits manuels
-        const mockTeachingUnits = [
-          {
-            id: "1",
-            name: "Physique Fondamentale",
-            promotionId: "1",
-            semester: "1",
-          },
-          {
-            id: "2",
-            name: "Mathématiques Appliquées",
-            promotionId: "1",
-            semester: "1",
-          },
-          {
-            id: "3",
-            name: "Physique Quantique",
-            promotionId: "1",
-            semester: "2",
-          },
-        ];
-
-        // 3. Fonction de calcul des crédits d'une UE
-        const calculateTeachingUnitCredits = (unitId) => {
-          return mockCourses
-            .filter((course) => course.teachingUnitId === unitId)
-            .reduce((sum, course) => sum + course.credits, 0);
-        };
-
-        // Pour enrichir les UE avec leurs crédits calculés :
-        const teachingUnitsWithCredits = mockTeachingUnits.map((unit) => ({
-          ...unit,
-          credits: calculateTeachingUnitCredits(unit.id),
-        }));
-
-        const mockGrades = [
-          // Semestre 1 - Jean Kabasele
-          {
-            studentId: "1",
-            courseId: "1",
-            grade: 15,
-            promotionId: "1",
-            semester: "1",
-          },
-          {
-            studentId: "1",
-            courseId: "2",
-            grade: 14,
-            promotionId: "1",
-            semester: "1",
-          },
-          {
-            studentId: "1",
-            courseId: "3",
-            grade: 12,
-            promotionId: "1",
-            semester: "1",
-          },
-          // Semestre 2 - Jean Kabasele
-          {
-            studentId: "1",
-            courseId: "4",
-            grade: 16,
-            promotionId: "1",
-            semester: "2",
-          },
-          // Semestre 1 - Marie Mbayo
-          {
-            studentId: "2",
-            courseId: "1",
-            grade: 8,
-            promotionId: "1",
-            semester: "1",
-          },
-          {
-            studentId: "2",
-            courseId: "2",
-            grade: 9,
-            promotionId: "1",
-            semester: "1",
-          },
-          {
-            studentId: "2",
-            courseId: "3",
-            grade: 11,
-            promotionId: "1",
-            semester: "1",
-          },
-        ];
-
-        setPromotions(mockPromotions);
-        setStudents(mockStudents);
-        setTeachingUnits(teachingUnitsWithCredits);
-        setCourses(mockCourses);
-        setGrades(mockGrades);
+        setStudents(studentsRes.data);
+        setCourses(coursesRes.data);
+        setTeachingUnits(unitsRes.data);
+        setGrades(gradesRes.data);
         setLoading(false);
       } catch (error) {
         console.error("Erreur de chargement des données:", error);
@@ -197,13 +80,16 @@ const Deliberation = () => {
 
     const calculateResults = () => {
       const promotionStudents = students.filter(
-        (s) => s.promotionId === selectedPromotion
+        (s) => s.promotion === selectedPromotion
       );
-      const promotion = promotions.find((p) => p.id === selectedPromotion);
 
       const resultsData = promotionStudents.map((student) => {
         // Filtrer les notes selon le semestre sélectionné
-        let studentGrades = grades.filter((g) => g.studentId === student.id);
+        let studentGrades = grades.filter(
+          (g) =>
+            g.student._id === student._id && g.promotion === selectedPromotion
+        );
+
         if (selectedSemester !== "all") {
           studentGrades = studentGrades.filter(
             (g) => g.semester === selectedSemester
@@ -214,15 +100,18 @@ const Deliberation = () => {
         const ueResults = teachingUnits
           .filter(
             (ue) =>
-              ue.promotionId === selectedPromotion &&
+              ue.promotion === selectedPromotion &&
               (selectedSemester === "all" || ue.semester === selectedSemester)
           )
           .map((ue) => {
-            const ueCourses = courses.filter((c) => c.teachingUnitId === ue.id);
+            const ueCourses = courses.filter(
+              (c) => c.teachingUnit._id === ue._id
+            );
+
             const ueGrades = studentGrades
-              .filter((g) => ueCourses.some((c) => c.id === g.courseId))
+              .filter((g) => ueCourses.some((c) => c._id === g.course.id))
               .map((g) => {
-                const course = courses.find((c) => c.id === g.courseId);
+                const course = courses.find((c) => c._id === g.course.id);
                 return { ...g, credits: course?.credits || 0 };
               });
 
@@ -239,20 +128,24 @@ const Deliberation = () => {
 
             ueAverage = totalCredits > 0 ? ueAverage / totalCredits : 0;
 
+            const hasGrades = ueGrades.length > 0;
+
             return {
-              ueId: ue.id,
+              ueId: ue._id,
               ueName: ue.name,
+              unitId: ue.unitId,
               semester: ue.semester,
-              credits: ue.credits,
+              credits: ueCourses.reduce((sum, c) => sum + c.credits, 0),
               average: ueAverage,
-              isValid: ueAverage >= 10 || allCoursesValid,
+              isValid: hasGrades && (ueAverage >= 10 || allCoursesValid), // ← correction ici
               courses: ueCourses.map((course) => {
                 const grade = studentGrades.find(
-                  (g) => g.courseId === course.id
+                  (g) => g.course.id === course._id
                 );
                 return {
-                  courseId: course.id,
+                  courseId: course._id,
                   courseName: course.name,
+                  courseCode: course.courseCode,
                   grade: grade?.grade || 0,
                   credits: course.credits,
                   isValid: (grade?.grade || 0) >= 10,
@@ -286,17 +179,27 @@ const Deliberation = () => {
         let decision = "NV"; // Non Validé par défaut
         if (selectedSemester === "all") {
           // Décision annuelle (75% des crédits)
-          decision =
-            validatedCredits >= promotion.totalCredits * 0.75 ? "V" : "NV";
+          const totalAnnualCredits = teachingUnits
+            .filter((ue) => ue.promotion === selectedPromotion)
+            .reduce((sum, ue) => {
+              const ueCourses = courses.filter(
+                (c) => c.teachingUnit._id === ue._id
+              );
+              return sum + ueCourses.reduce((sum, c) => sum + c.credits, 0);
+            }, 0);
+
+          decision = validatedCredits >= totalAnnualCredits * 0.75 ? "V" : "NV";
         } else {
           // Décision semestrielle
           decision = validatedCredits === totalPossibleCredits ? "V" : "NV";
         }
 
         return {
-          studentId: student.id,
+          studentId: student._id,
           studentName: `${student.lastName} ${student.firstName}`,
-          promotionId: selectedPromotion,
+          studentPostName: student.postName || "",
+          studentIdNumber: student.studentId,
+          promotion: selectedPromotion,
           semester: selectedSemester,
           ueResults,
           validatedCredits,
@@ -341,7 +244,6 @@ const Deliberation = () => {
     courses,
     teachingUnits,
     grades,
-    promotions,
   ]);
 
   // Gérer la sélection d'un étudiant pour voir son bulletin
@@ -349,12 +251,6 @@ const Deliberation = () => {
     setSelectedStudent(studentId);
     const bulletin = results.find((r) => r.studentId === studentId);
     setCurrentBulletin(bulletin);
-  };
-
-  // Obtenir le nom d'une promotion
-  const getPromotionName = (promotionId) => {
-    const promotion = promotions.find((p) => p.id === promotionId);
-    return promotion ? promotion.name : "Inconnu";
   };
 
   return (
@@ -377,9 +273,9 @@ const Deliberation = () => {
               }}
             >
               <option value="">Sélectionner une promotion</option>
-              {promotions.map((promo) => (
-                <option key={promo.id} value={promo.id}>
-                  {promo.name}
+              {PROMOTIONS.map((promo) => (
+                <option key={promo} value={promo}>
+                  {promo}
                 </option>
               ))}
             </select>
@@ -400,8 +296,11 @@ const Deliberation = () => {
               disabled={!selectedPromotion}
             >
               <option value="all">Tous semestres</option>
-              <option value="1">Semestre 1</option>
-              <option value="2">Semestre 2</option>
+              {SEMESTERS.map((sem) => (
+                <option key={sem} value={sem}>
+                  {sem}
+                </option>
+              ))}
             </select>
             <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
               <FiChevronDown className="text-gray-400" />
@@ -454,7 +353,7 @@ const Deliberation = () => {
                     <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
                       {selectedSemester === "all"
                         ? "Résultats annuels"
-                        : `Semestre ${selectedSemester}`}
+                        : selectedSemester}
                     </h3>
                     <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-4">
                       <div
@@ -524,11 +423,16 @@ const Deliberation = () => {
                         Bulletin{" "}
                         {selectedSemester === "all"
                           ? "Annuel"
-                          : `Semestre ${selectedSemester}`}
+                          : selectedSemester}
                       </h2>
                       <p className="text-gray-600 dark:text-gray-300">
-                        {currentBulletin.studentName} -{" "}
-                        {getPromotionName(currentBulletin.promotionId)}
+                        {currentBulletin.studentName}{" "}
+                        {currentBulletin.studentPostName &&
+                          currentBulletin.studentPostName}{" "}
+                        - {currentBulletin.promotion}
+                      </p>
+                      <p className="text-gray-500 dark:text-gray-400 text-sm">
+                        Matricule: {currentBulletin.studentIdNumber}
                       </p>
                     </div>
 
@@ -538,7 +442,7 @@ const Deliberation = () => {
                         fileName={`bulletin_${currentBulletin.studentName}_${
                           selectedSemester === "all"
                             ? "annuel"
-                            : `s${selectedSemester}`
+                            : selectedSemester.toLowerCase()
                         }.pdf`}
                       >
                         {({ loading }) => (
@@ -608,9 +512,11 @@ const Deliberation = () => {
                           }`}
                         >
                           <div>
-                            <h3 className="font-medium">{ue.ueName}</h3>
+                            <h3 className="font-medium">
+                              {ue.ueName} ({ue.unitId})
+                            </h3>
                             <p className="text-sm text-gray-500 dark:text-gray-400">
-                              S{ue.semester} - {ue.credits} crédits
+                              {ue.semester} - {ue.credits} crédits
                             </p>
                           </div>
                           <div className="text-right">
@@ -635,15 +541,18 @@ const Deliberation = () => {
                               key={course.courseId}
                               className="grid grid-cols-12 p-3 hover:bg-gray-50 dark:hover:bg-gray-700"
                             >
-                              <div className="col-span-8">
+                              <div className="col-span-6">
                                 <p className="text-sm">{course.courseName}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {course.courseCode}
+                                </p>
                               </div>
-                              <div className="col-span-2 text-right">
+                              <div className="col-span-3 text-right">
                                 <p className="text-sm">
                                   {course.credits} crédits
                                 </p>
                               </div>
-                              <div className="col-span-2 text-right">
+                              <div className="col-span-3 text-right">
                                 <p
                                   className={`text-sm font-medium ${
                                     course.isValid

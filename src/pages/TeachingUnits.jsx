@@ -13,11 +13,11 @@ import {
   FiCreditCard,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
+import { addTeachingUnit, fetchTeachingUnits } from "../api/apiService";
 
 const TeachingUnits = () => {
   // États pour la gestion des données
   const [teachingUnits, setTeachingUnits] = useState([]);
-  const [courses, setCourses] = useState([]);
   const [promotions, setPromotions] = useState([]);
   const [filteredUnits, setFilteredUnits] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,102 +37,41 @@ const TeachingUnits = () => {
     name: "",
     unitId: "",
     promotionId: "",
-    semester: "1",
+    semester: "S1",
   });
 
   // Charger les données initiales
   useEffect(() => {
-    const fetchData = async () => {
+    const getUnits = async () => {
       try {
-        // Simuler un appel API
-        await new Promise((resolve) => setTimeout(resolve, 800));
-
-        // Données mockées
         const mockPromotions = [
-          { id: "1", name: "Promotion 2020" },
-          { id: "2", name: "Promotion 2021" },
-          { id: "3", name: "Promotion 2022" },
-          { id: "4", name: "Promotion 2023" },
+          { id: "1", name: "L1 LMD" },
+          { id: "2", name: "L2 LMD" },
+          { id: "3", name: "L3 LMD" },
+          { id: "4", name: "M1" },
+          { id: "5", name: "M2" },
         ];
-
-        const mockCourses = [
-          {
-            id: "1",
-            name: "Mécanique Classique",
-            credits: 4,
-            teachingUnitId: "1",
-          },
-          {
-            id: "2",
-            name: "Électromagnétisme",
-            credits: 4,
-            teachingUnitId: "1",
-          },
-          {
-            id: "3",
-            name: "Algèbre Linéaire",
-            credits: 5,
-            teachingUnitId: "2",
-          },
-          // Ajouter plus de cours...
-        ];
-
-        const mockTeachingUnits = [
-          {
-            id: "1",
-            name: "Physique Fondamentale",
-            unitId: "UE101",
-            promotionId: "1",
-            semester: "1",
-            courses: ["1", "2"],
-          },
-          {
-            id: "2",
-            name: "Mathématiques Appliquées",
-            unitId: "UE102",
-            promotionId: "1",
-            semester: "1",
-            courses: ["3"],
-          },
-          {
-            id: "3",
-            name: "Physique Quantique",
-            unitId: "UE201",
-            promotionId: "1",
-            semester: "2",
-            courses: [],
-          },
-          // Ajouter plus d'UE...
-        ];
-
         setPromotions(mockPromotions);
-        setCourses(mockCourses);
-        setTeachingUnits(mockTeachingUnits);
-        setFilteredUnits(mockTeachingUnits);
-        setLoading(false);
+
+        const result = await fetchTeachingUnits();
+
+        setTeachingUnits(result.data);
+        console.log(result.data);
       } catch (error) {
         console.error("Erreur de chargement des données:", error);
+      } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, []);
-
-  // Calculer le total des crédits pour une UE
-  const calculateCredits = (unitId) => {
-    const unitCourses = courses.filter(
-      (course) => course.teachingUnitId === unitId
-    );
-    return unitCourses.reduce((total, course) => total + course.credits, 0);
-  };
+    getUnits();
+  }, [loading]);
 
   // Filtrer les UE
   useEffect(() => {
     let result = teachingUnits;
-
     if (selectedPromotion) {
-      result = result.filter((unit) => unit.promotionId === selectedPromotion);
+      result = result.filter((unit) => unit.promotion === selectedPromotion);
     }
 
     if (selectedSemester) {
@@ -157,7 +96,7 @@ const TeachingUnits = () => {
       name: "",
       unitId: "",
       promotionId: promotions[0]?.id || "",
-      semester: "1",
+      semester: "S1",
     });
     setIsAddModalOpen(true);
   };
@@ -186,44 +125,49 @@ const TeachingUnits = () => {
   };
 
   // Soumission du formulaire
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (isAddModalOpen) {
-      // Ajouter une nouvelle UE
-      const newUnit = {
-        id: Date.now().toString(),
-        ...formData,
-        courses: [],
+    try {
+      const payload = {
+        name: formData.name,
+        unitId: formData.unitId.toUpperCase(), // uppercase pour respecter le schéma
+        promotion: formData.promotionId,
+        semester: formData.semester,
       };
 
-      setTeachingUnits((prev) => [...prev, newUnit]);
-    } else {
-      // Mettre à jour une UE existante
-      setTeachingUnits((prev) =>
-        prev.map((unit) =>
-          unit.id === currentUnit.id ? { ...unit, ...formData } : unit
-        )
-      );
-    }
+      const response = await addTeachingUnit(payload);
+      console.log("UE ajoutée :", response.data);
 
-    closeModal();
+      // Notification ou feedback visuel
+      console.log("UE ajoutée avec succès !");
+      setLoading(true);
+
+      // Réinitialiser le formulaire
+      setFormData({
+        name: "",
+        unitId: "",
+        promotionId: promotions[0]?.name || "",
+        semester: "S1",
+      });
+
+      // Fermer la modale si besoin
+      closeModal();
+
+      // Optionnel : recharger les données des UE dans ton tableau
+    } catch (error) {
+      console.error("Erreur d'ajout :", error);
+      const errorMessage = Array.isArray(error.error)
+        ? error.error.join("\n")
+        : error.error;
+      console.log(errorMessage || "Une erreur est survenue");
+    }
   };
 
   // Supprimer une UE
   const handleDelete = (unitId) => {
     if (window.confirm("Êtes-vous sûr de vouloir supprimer cette UE ?")) {
       // Vérifier s'il y a des cours associés
-      const hasCourses = courses.some(
-        (course) => course.teachingUnitId === unitId
-      );
-
-      if (hasCourses) {
-        alert(
-          "Cette UE contient des cours. Veuillez d'abord supprimer ou réaffecter les cours."
-        );
-        return;
-      }
 
       setTeachingUnits((prev) => prev.filter((unit) => unit.id !== unitId));
     }
@@ -260,7 +204,7 @@ const TeachingUnits = () => {
               >
                 <option value="">Toutes promotions</option>
                 {promotions.map((promo) => (
-                  <option key={promo.id} value={promo.id}>
+                  <option key={promo.id} value={promo.name}>
                     {promo.name}
                   </option>
                 ))}
@@ -277,8 +221,8 @@ const TeachingUnits = () => {
                 onChange={(e) => setSelectedSemester(e.target.value)}
               >
                 <option value="">Tous semestres</option>
-                <option value="1">Semestre 1</option>
-                <option value="2">Semestre 2</option>
+                <option value="S1">Semestre 1</option>
+                <option value="S2">Semestre 2</option>
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
                 <FiChevronDown className="text-gray-400" />
@@ -333,14 +277,6 @@ const TeachingUnits = () => {
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredUnits.length > 0 ? (
                   filteredUnits.map((unit) => {
-                    const unitCourses = courses.filter((course) =>
-                      unit.courses.includes(course.id)
-                    );
-                    const promotion = promotions.find(
-                      (p) => p.id === unit.promotionId
-                    );
-                    const credits = calculateCredits(unit.id);
-
                     return (
                       <motion.tr
                         key={unit.id}
@@ -358,18 +294,18 @@ const TeachingUnits = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
                           <span
                             className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              credits > 0
+                              unit.totalCredits > 0
                                 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                                 : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
                             }`}
                           >
-                            {credits} Crédits
+                            {unit.totalCredits} Crédits
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-300">
-                          {unitCourses.length > 0 ? (
+                          {unit.courses.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
-                              {unitCourses.slice(0, 3).map((course) => (
+                              {unit.courses.slice(0, 3).map((course) => (
                                 <span
                                   key={course.id}
                                   className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded"
@@ -377,9 +313,9 @@ const TeachingUnits = () => {
                                   {course.name}
                                 </span>
                               ))}
-                              {unitCourses.length > 3 && (
+                              {unit.courses > 3 && (
                                 <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs rounded">
-                                  +{unitCourses.length - 3} autres
+                                  +{unit.courses.length - 3} autres
                                 </span>
                               )}
                             </div>
@@ -390,10 +326,10 @@ const TeachingUnits = () => {
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                          {promotion?.name || "N/A"}
+                          {unit.promotion}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                          S{unit.semester}
+                          {unit.semester}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex justify-end space-x-2">
@@ -491,7 +427,7 @@ const TeachingUnits = () => {
                         </div>
                       </div>
 
-                      <div className="sm:col-span-3">
+                      <div className="sm:col-span-6">
                         <label
                           htmlFor="unitId"
                           className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
@@ -530,7 +466,7 @@ const TeachingUnits = () => {
                           required
                         >
                           {promotions.map((promo) => (
-                            <option key={promo.id} value={promo.id}>
+                            <option key={promo.id} value={promo.name}>
                               {promo.name}
                             </option>
                           ))}
@@ -552,30 +488,9 @@ const TeachingUnits = () => {
                           onChange={handleInputChange}
                           required
                         >
-                          <option value="1">Semestre 1</option>
-                          <option value="2">Semestre 2</option>
+                          <option value="S1">Semestre 1</option>
+                          <option value="S2">Semestre 2</option>
                         </select>
-                      </div>
-
-                      <div className="sm:col-span-3">
-                        <div className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Total crédits
-                        </div>
-                        <div className="relative rounded-md shadow-sm">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <FiCreditCard className="text-gray-400" />
-                          </div>
-                          <input
-                            type="text"
-                            className="block w-full pl-10 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-                            value={
-                              currentUnit
-                                ? calculateCredits(currentUnit.id) + " crédits"
-                                : "0 crédits"
-                            }
-                            readOnly
-                          />
-                        </div>
                       </div>
                     </div>
 

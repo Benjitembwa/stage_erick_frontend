@@ -13,6 +13,11 @@ import {
   FiCreditCard,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  addCourse,
+  fetchAllCourses,
+  fetchTeachingUnits,
+} from "../api/apiService";
 
 const Courses = () => {
   // États pour la gestion des données
@@ -42,90 +47,34 @@ const Courses = () => {
     semester: "1",
   });
 
-  // Charger les données initiales
   useEffect(() => {
-    const fetchData = async () => {
+    const getUnits = async () => {
       try {
-        // Simuler un appel API
-        await new Promise((resolve) => setTimeout(resolve, 800));
-
-        // Données mockées
         const mockPromotions = [
-          { id: "1", name: "Promotion 2020" },
-          { id: "2", name: "Promotion 2021" },
-          { id: "3", name: "Promotion 2022" },
-          { id: "4", name: "Promotion 2023" },
+          { id: "1", name: "L1 LMD" },
+          { id: "2", name: "L2 LMD" },
+          { id: "3", name: "L3 LMD" },
+          { id: "4", name: "M1" },
+          { id: "5", name: "M2" },
         ];
-
-        const mockTeachingUnits = [
-          {
-            id: "1",
-            name: "Physique Fondamentale",
-            promotionId: "1",
-            semester: "1",
-            credits: 12,
-          },
-          {
-            id: "2",
-            name: "Mathématiques Appliquées",
-            promotionId: "1",
-            semester: "1",
-            credits: 10,
-          },
-          {
-            id: "3",
-            name: "Physique Quantique",
-            promotionId: "1",
-            semester: "2",
-            credits: 14,
-          },
-          // Ajouter plus d'UE...
-        ];
-
-        const mockCourses = [
-          {
-            id: "1",
-            name: "Mécanique Classique",
-            courseId: "PHY101",
-            credits: 4,
-            teachingUnitId: "1",
-            promotionId: "1",
-            semester: "1",
-          },
-          {
-            id: "2",
-            name: "Électromagnétisme",
-            courseId: "PHY102",
-            credits: 4,
-            teachingUnitId: "1",
-            promotionId: "1",
-            semester: "1",
-          },
-          {
-            id: "3",
-            name: "Algèbre Linéaire",
-            courseId: "MATH101",
-            credits: 5,
-            teachingUnitId: "2",
-            promotionId: "1",
-            semester: "1",
-          },
-          // Ajouter plus de cours...
-        ];
-
         setPromotions(mockPromotions);
-        setTeachingUnits(mockTeachingUnits);
-        setCourses(mockCourses);
-        setFilteredCourses(mockCourses);
-        setLoading(false);
+
+        const result = await fetchTeachingUnits();
+        const data = await fetchAllCourses();
+        setCourses(data.data);
+        setFilteredCourses(data.data);
+        console.log(data.data);
+        setTeachingUnits(result.data);
+        console.log(result.data);
       } catch (error) {
         console.error("Erreur de chargement des données:", error);
+      } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, []);
+    getUnits();
+  }, [loading]);
 
   // Filtrer les cours
   useEffect(() => {
@@ -133,7 +82,7 @@ const Courses = () => {
 
     if (selectedPromotion) {
       result = result.filter(
-        (course) => course.promotionId === selectedPromotion
+        (course) => course.promotion === selectedPromotion
       );
     }
 
@@ -142,11 +91,11 @@ const Courses = () => {
     }
 
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
+      const query = searchQuery;
       result = result.filter(
         (course) =>
-          course.name.toLowerCase().includes(query) ||
-          course.courseId.toLowerCase().includes(query)
+          course.name.toLowerCase().includes(query.toLowerCase()) ||
+          course.courseCode.toLowerCase().includes(query.toLowerCase())
       );
     }
 
@@ -158,7 +107,7 @@ const Courses = () => {
     if (!formData.promotionId || !formData.semester) return teachingUnits;
     return teachingUnits.filter(
       (unit) =>
-        unit.promotionId === formData.promotionId &&
+        unit.promotion === formData.promotionId &&
         unit.semester === formData.semester
     );
   };
@@ -202,30 +151,29 @@ const Courses = () => {
   };
 
   // Soumission du formulaire
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (isAddModalOpen) {
-      // Ajouter un nouveau cours
-      const newCourse = {
-        id: Date.now().toString(),
-        ...formData,
-        credits: parseInt(formData.credits),
-      };
+    const newCourse = {
+      courseCode: formData.courseId,
+      name: formData.name,
+      credits: Number(formData.credits),
+      teachingUnit: formData.teachingUnitId,
+      semester: formData.semester,
+      promotion: formData.promotionId,
+    };
 
-      setCourses((prev) => [...prev, newCourse]);
-    } else {
-      // Mettre à jour un cours existant
-      setCourses((prev) =>
-        prev.map((course) =>
-          course.id === currentCourse.id
-            ? { ...course, ...formData, credits: parseInt(formData.credits) }
-            : course
-        )
-      );
+    try {
+      const result = await addCourse(newCourse);
+      console.log("Cours ajouté avec succès :", result.data);
+
+      // Tu peux fermer la modale ici, ou réinitialiser le formulaire
+      closeModal();
+      // Optionnel : recharger les cours si tu veux les afficher
+      // await loadCourses();
+    } catch (err) {
+      console.log(err.error || "Erreur lors de l'ajout du cours.");
     }
-
-    closeModal();
   };
 
   // Supprimer un cours
@@ -266,7 +214,7 @@ const Courses = () => {
               >
                 <option value="">Toutes promotions</option>
                 {promotions.map((promo) => (
-                  <option key={promo.id} value={promo.id}>
+                  <option key={promo.id} value={promo.name}>
                     {promo.name}
                   </option>
                 ))}
@@ -283,8 +231,8 @@ const Courses = () => {
                 onChange={(e) => setSelectedSemester(e.target.value)}
               >
                 <option value="">Tous semestres</option>
-                <option value="1">Semestre 1</option>
-                <option value="2">Semestre 2</option>
+                <option value="S1">Semestre 1</option>
+                <option value="S2">Semestre 2</option>
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
                 <FiChevronDown className="text-gray-400" />
@@ -339,13 +287,6 @@ const Courses = () => {
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredCourses.length > 0 ? (
                   filteredCourses.map((course) => {
-                    const teachingUnit = teachingUnits.find(
-                      (u) => u.id === course.teachingUnitId
-                    );
-                    const promotion = promotions.find(
-                      (p) => p.id === course.promotionId
-                    );
-
                     return (
                       <motion.tr
                         key={course.id}
@@ -355,13 +296,13 @@ const Courses = () => {
                         className="hover:bg-gray-50 dark:hover:bg-gray-700"
                       >
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                          {course.courseId}
+                          {course.courseCode}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                           {course.name}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                          {teachingUnit?.name || "N/A"}
+                          {course.teachingUnit.name}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
                           <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
@@ -369,10 +310,10 @@ const Courses = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                          {promotion?.name || "N/A"}
+                          {course.promotion}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                          S{course.semester}
+                          {course.semester}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex justify-end space-x-2">
@@ -534,7 +475,7 @@ const Courses = () => {
                           required
                         >
                           {promotions.map((promo) => (
-                            <option key={promo.id} value={promo.id}>
+                            <option key={promo.id} value={promo.name}>
                               {promo.name}
                             </option>
                           ))}
@@ -556,8 +497,8 @@ const Courses = () => {
                           onChange={handleInputChange}
                           required
                         >
-                          <option value="1">Semestre 1</option>
-                          <option value="2">Semestre 2</option>
+                          <option value="S1">Semestre 1</option>
+                          <option value="S2">Semestre 2</option>
                         </select>
                       </div>
 
@@ -578,9 +519,8 @@ const Courses = () => {
                         >
                           <option value="">Sélectionner une UE</option>
                           {getFilteredTeachingUnits().map((unit) => (
-                            <option key={unit.id} value={unit.id}>
-                              {unit.name} (S{unit.semester} - {unit.credits}{" "}
-                              crédits)
+                            <option key={unit._id} value={unit._id}>
+                              {unit.name} {unit.semester}
                             </option>
                           ))}
                         </select>

@@ -1,61 +1,56 @@
-// src/pages/Grades.js
+// src/pages/Courses.js
 import { useState, useEffect } from "react";
 import {
+  FiBook,
+  FiPlus,
   FiEdit2,
   FiTrash2,
   FiSearch,
   FiChevronDown,
   FiX,
   FiSave,
-  FiUser,
-  FiBook,
-  FiAward,
-  FiFilter,
-  FiPlus,
-  FiCheck,
-  FiX as FiTimes,
+  FiHash,
+  FiCreditCard,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  createGrade,
-  fetchAllCourses,
-  fetchAllGrades,
-  fetchAllStudents,
-} from "../api/apiService";
+import { addCourse, fetchTeachingUnits } from "../api/apiService";
 
-const Grades = () => {
+const Courses = () => {
   // États pour la gestion des données
-  const [grades, setGrades] = useState([]);
-  const [students, setStudents] = useState([]);
   const [courses, setCourses] = useState([]);
+  const [teachingUnits, setTeachingUnits] = useState([]);
   const [promotions, setPromotions] = useState([]);
-  const [filteredGrades, setFilteredGrades] = useState([]);
+  const [filteredCourses, setFilteredCourses] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // États pour les filtres
   const [selectedPromotion, setSelectedPromotion] = useState("");
   const [selectedSemester, setSelectedSemester] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
   // États pour les modales
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [currentGrade, setCurrentGrade] = useState(null);
+  const [currentCourse, setCurrentCourse] = useState(null);
 
   // États pour le formulaire
   const [formData, setFormData] = useState({
-    studentId: "",
+    name: "",
     courseId: "",
-    grade: "",
+    credits: 3,
+    teachingUnitId: "",
     promotionId: "",
-    semester: "",
+    semester: "1",
   });
 
   // Charger les données initiales
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Simuler un appel API
+        await new Promise((resolve) => setTimeout(resolve, 800));
+
+        // Données mockées
         const mockPromotions = [
           { id: "1", name: "L1 LMD" },
           { id: "2", name: "L2 LMD" },
@@ -63,16 +58,41 @@ const Grades = () => {
           { id: "4", name: "M1" },
           { id: "5", name: "M2" },
         ];
-        const data = await fetchAllCourses();
-        const result = await fetchAllStudents();
-        const result2 = await fetchAllGrades();
-        console.log(result2.data);
+
+        const mockCourses = [
+          {
+            id: "1",
+            name: "Mécanique Classique",
+            courseId: "PHY101",
+            credits: 4,
+            teachingUnitId: "1",
+            promotionId: "1",
+            semester: "1",
+          },
+          {
+            id: "2",
+            name: "Électromagnétisme",
+            courseId: "PHY102",
+            credits: 4,
+            teachingUnitId: "1",
+            promotionId: "1",
+            semester: "1",
+          },
+          {
+            id: "3",
+            name: "Algèbre Linéaire",
+            courseId: "MATH101",
+            credits: 5,
+            teachingUnitId: "2",
+            promotionId: "1",
+            semester: "1",
+          },
+          // Ajouter plus de cours...
+        ];
 
         setPromotions(mockPromotions);
-        setStudents(result.data);
-        setCourses(data.data);
-        setGrades(result2.data);
-        setFilteredGrades(result2.data);
+        setCourses(mockCourses);
+        setFilteredCourses(mockCourses);
         setLoading(false);
       } catch (error) {
         console.error("Erreur de chargement des données:", error);
@@ -81,85 +101,81 @@ const Grades = () => {
     };
 
     fetchData();
-  }, [loading]);
+  }, []);
 
-  // Obtenir les cours filtrés pour le formulaire
-  const getFilteredCourses = () => {
-    if (!formData.promotionId || !formData.semester) return courses;
-    return courses.filter(
-      (course) =>
-        course.promotion === formData.promotionId &&
-        course.semester === formData.semester
-    );
-  };
-
-  // Obtenir les étudiants filtrés pour le formulaire
-  const getFilteredStudents = () => {
-    if (!formData.promotionId) return students;
-    return students.filter(
-      (student) => student.promotion === formData.promotionId
-    );
-  };
-
-  // Filtrer les notes
   useEffect(() => {
-    let result = grades;
+    const getUnits = async () => {
+      try {
+        const result = await fetchTeachingUnits();
+        setTeachingUnits(result.data);
+        console.log(result.data);
+      } catch (error) {
+        console.error("Erreur de chargement des données:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    getUnits();
+  }, []);
+
+  // Filtrer les cours
+  useEffect(() => {
+    let result = courses;
 
     if (selectedPromotion) {
-      result = result.filter((grade) => grade.promotion === selectedPromotion);
+      result = result.filter(
+        (course) => course.promotionId === selectedPromotion
+      );
     }
 
     if (selectedSemester) {
-      result = result.filter((grade) => grade.semester === selectedSemester);
-    }
-
-    if (selectedCourse) {
-      result = result.filter((grade) => grade.course._id === selectedCourse);
+      result = result.filter((course) => course.semester === selectedSemester);
     }
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      result = result.filter((grade) => {
-        const student = students.find(
-          (s) => s.studentId === grade.student.studentId
-        );
-        const studentName = student
-          ? `${student.lastName} ${student.firstName}`.toLowerCase()
-          : "";
-        return studentName.includes(query);
-      });
+      result = result.filter(
+        (course) =>
+          course.name.toLowerCase().includes(query) ||
+          course.courseId.toLowerCase().includes(query)
+      );
     }
 
-    setFilteredGrades(result);
-  }, [
-    selectedPromotion,
-    selectedSemester,
-    selectedCourse,
-    searchQuery,
-    grades,
-    students,
-  ]);
+    setFilteredCourses(result);
+  }, [selectedPromotion, selectedSemester, searchQuery, courses]);
 
-  // Gestion des modales
+  // Obtenir les UE filtrées pour le formulaire
+  const getFilteredTeachingUnits = () => {
+    if (!formData.promotionId || !formData.semester) return teachingUnits;
+    return teachingUnits.filter(
+      (unit) =>
+        unit.promotionId === formData.promotionId &&
+        unit.semester === formData.semester
+    );
+  };
+  console.log(getFilteredTeachingUnits());
   const openAddModal = () => {
     setFormData({
-      studentId: "",
+      name: "",
       courseId: "",
-      grade: "",
+      credits: 3,
+      teachingUnitId: "",
       promotionId: promotions[0]?.id || "",
-      semester: "S1",
+      semester: "1",
     });
     setIsAddModalOpen(true);
   };
 
-  const openEditModal = (grade) => {
-    setCurrentGrade(grade);
+  const openEditModal = (course) => {
+    setCurrentCourse(course);
     setFormData({
-      studentId: grade.studentId,
-      courseId: grade.courseId,
-      grade: grade.grade.toString(),
-      promotionId: grade.promotionId,
-      semester: grade.semester,
+      name: course.name,
+      courseId: course.courseId,
+      credits: course.credits,
+      teachingUnitId: course.teachingUnitId,
+      promotionId: course.promotionId,
+      semester: course.semester,
     });
     setIsEditModalOpen(true);
   };
@@ -167,7 +183,7 @@ const Grades = () => {
   const closeModal = () => {
     setIsAddModalOpen(false);
     setIsEditModalOpen(false);
-    setCurrentGrade(null);
+    setCurrentCourse(null);
   };
 
   // Gestion des changements de formulaire
@@ -176,41 +192,43 @@ const Grades = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Soumission du formulaire
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const newCourse = {
+      courseCode: formData.courseId,
+      name: formData.name,
+      credits: Number(formData.credits),
+      teachingUnit: formData.teachingUnitId,
+      semester: formData.semester,
+      promotion: formData.promotionId,
+    };
+
     try {
-      // Construction de l'objet à envoyer
-      const gradeToSend = {
-        student: formData.studentId,
-        course: formData.courseId,
-        grade: parseFloat(formData.grade),
-        promotion: formData.promotionId,
-        semester: formData.semester,
-      };
+      const result = await addCourse(newCourse);
+      console.log("Cours ajouté avec succès :", result.data);
 
-      const res = await createGrade(gradeToSend);
-      setLoading(true);
-
+      // Tu peux fermer la modale ici, ou réinitialiser le formulaire
       closeModal();
-    } catch (error) {
-      const message =
-        error.response?.data?.error || "Erreur lors de l'ajout de la note.";
-      console.log(message);
+      // Optionnel : recharger les cours si tu veux les afficher
+      // await loadCourses();
+    } catch (err) {
+      console.log(err.error || "Erreur lors de l'ajout du cours.");
     }
   };
 
-  // Supprimer une note
-  const handleDelete = (gradeId) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette note ?")) {
-      setGrades((prev) => prev.filter((grade) => grade.id !== gradeId));
+  // Supprimer un cours
+  const handleDelete = (courseId) => {
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer ce cours ?")) {
+      setCourses((prev) => prev.filter((course) => course.id !== courseId));
     }
   };
 
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
-        Gestion des Notes
+        Gestion des Cours
       </h1>
 
       {/* Contrôles de filtrage */}
@@ -222,14 +240,14 @@ const Grades = () => {
             </div>
             <input
               type="text"
-              placeholder="Rechercher un étudiant..."
+              placeholder="Rechercher un cours..."
               className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+          <div className="grid grid-cols-2 gap-3 w-full sm:w-auto">
             <div className="relative">
               <select
                 className="appearance-none pl-3 pr-8 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -238,7 +256,7 @@ const Grades = () => {
               >
                 <option value="">Toutes promotions</option>
                 {promotions.map((promo) => (
-                  <option key={promo.id} value={promo.name}>
+                  <option key={promo.id} value={promo.id}>
                     {promo.name}
                   </option>
                 ))}
@@ -255,33 +273,8 @@ const Grades = () => {
                 onChange={(e) => setSelectedSemester(e.target.value)}
               >
                 <option value="">Tous semestres</option>
-                <option value="S1">Semestre 1</option>
-                <option value="S2">Semestre 2</option>
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                <FiChevronDown className="text-gray-400" />
-              </div>
-            </div>
-
-            <div className="relative">
-              <select
-                className="appearance-none pl-3 pr-8 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={selectedCourse}
-                onChange={(e) => setSelectedCourse(e.target.value)}
-                disabled={!selectedPromotion || !selectedSemester}
-              >
-                <option value="">Tous cours</option>
-                {courses
-                  .filter(
-                    (c) =>
-                      c.promotion === selectedPromotion &&
-                      c.semester === selectedSemester
-                  )
-                  .map((course) => (
-                    <option key={course.id} value={course._id}>
-                      {course.name}
-                    </option>
-                  ))}
+                <option value="1">Semestre 1</option>
+                <option value="2">Semestre 2</option>
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
                 <FiChevronDown className="text-gray-400" />
@@ -295,11 +288,11 @@ const Grades = () => {
           className="flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 w-full md:w-auto"
         >
           <FiPlus className="mr-2" />
-          Ajouter une note
+          Ajouter un cours
         </button>
       </div>
 
-      {/* Tableau des notes */}
+      {/* Tableau des cours */}
       {loading ? (
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -311,10 +304,16 @@ const Grades = () => {
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Étudiant
+                    Code
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Cours
+                    Nom du cours
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    UE
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    Crédits
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Promotion
@@ -322,81 +321,59 @@ const Grades = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Semestre
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Note
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Statut
-                  </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredGrades.length > 0 ? (
-                  filteredGrades.map((grade) => {
-                    const isPassing = grade.grade >= 10;
+                {filteredCourses.length > 0 ? (
+                  filteredCourses.map((course) => {
+                    const teachingUnit = teachingUnits.find(
+                      (u) => u.id === course.teachingUnitId
+                    );
+                    const promotion = promotions.find(
+                      (p) => p.id === course.promotionId
+                    );
 
                     return (
                       <motion.tr
-                        key={grade.id}
+                        key={course.id}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.3 }}
                         className="hover:bg-gray-50 dark:hover:bg-gray-700"
                       >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          {course.courseId}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                              <FiUser className="text-blue-600 dark:text-blue-300" />
-                            </div>
-                            <div className="ml-4">
-                              <div className="font-medium">
-                                {grade.student.lastName}{" "}
-                                {grade.student.firstName}
-                              </div>
-                            </div>
-                          </div>
+                          {course.name}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                          {grade.course.name}
+                          {teachingUnit?.name || "N/A"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                          {grade.promotion}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                          {grade.semester}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white font-medium">
-                          {grade.grade}/20
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              isPassing
-                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                            }`}
-                          >
-                            {isPassing ? (
-                              <FiCheck className="mr-1" />
-                            ) : (
-                              <FiTimes className="mr-1" />
-                            )}
-                            {isPassing ? "Validé" : "Échoué"}
+                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                            {course.credits} Crédits
                           </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                          {promotion?.name || "N/A"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                          S{course.semester}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex justify-end space-x-2">
                             <button
-                              onClick={() => openEditModal(grade)}
+                              onClick={() => openEditModal(course)}
                               className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/30"
                             >
                               <FiEdit2 />
                             </button>
                             <button
-                              onClick={() => handleDelete(grade.id)}
+                              onClick={() => handleDelete(course.id)}
                               className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/30"
                             >
                               <FiTrash2 />
@@ -412,7 +389,7 @@ const Grades = () => {
                       colSpan="7"
                       className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400"
                     >
-                      Aucune note trouvée
+                      Aucun cours trouvé
                     </td>
                   </tr>
                 )}
@@ -426,9 +403,9 @@ const Grades = () => {
       <AnimatePresence>
         {(isAddModalOpen || isEditModalOpen) && (
           <>
-            {/* Fond semi-transparent - animation séparée */}
+            {/* Fond semi-transparent avec animation séparée */}
             <motion.div
-              key="modal-backdrop"
+              key="course-modal-backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.75 }}
               exit={{ opacity: 0 }}
@@ -436,10 +413,10 @@ const Grades = () => {
               onClick={closeModal}
             />
 
-            {/* Contenu de la modal - animation séparée */}
+            {/* Contenu de la modal */}
             <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
               <motion.div
-                key="modal-content"
+                key="course-modal-content"
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -451,9 +428,7 @@ const Grades = () => {
                 <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                   <div className="flex justify-between items-start">
                     <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">
-                      {isAddModalOpen
-                        ? "Ajouter un étudiant"
-                        : "Modifier étudiant"}
+                      {isAddModalOpen ? "Ajouter un cours" : "Modifier cours"}
                     </h3>
                     <button
                       onClick={closeModal}
@@ -462,9 +437,78 @@ const Grades = () => {
                       <FiX className="h-6 w-6" />
                     </button>
                   </div>
+
                   <form onSubmit={handleSubmit}>
                     <div className="grid grid-cols-1 gap-y-4 gap-x-6 sm:grid-cols-6">
                       <div className="sm:col-span-6">
+                        <label
+                          htmlFor="name"
+                          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                        >
+                          Nom du cours
+                        </label>
+                        <div className="relative rounded-md shadow-sm">
+                          <input
+                            type="text"
+                            name="name"
+                            id="name"
+                            className="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                            value={formData.name}
+                            onChange={handleInputChange}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="sm:col-span-3">
+                        <label
+                          htmlFor="courseId"
+                          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                        >
+                          Code du cours
+                        </label>
+                        <div className="relative rounded-md shadow-sm">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <FiHash className="text-gray-400" />
+                          </div>
+                          <input
+                            type="text"
+                            name="courseId"
+                            id="courseId"
+                            className="block w-full pl-10 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                            value={formData.courseId}
+                            onChange={handleInputChange}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="sm:col-span-3">
+                        <label
+                          htmlFor="credits"
+                          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                        >
+                          Crédits
+                        </label>
+                        <div className="relative rounded-md shadow-sm">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <FiCreditCard className="text-gray-400" />
+                          </div>
+                          <input
+                            type="number"
+                            name="credits"
+                            id="credits"
+                            min="1"
+                            max="10"
+                            className="block w-full pl-10 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                            value={formData.credits}
+                            onChange={handleInputChange}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="sm:col-span-3">
                         <label
                           htmlFor="promotionId"
                           className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
@@ -480,7 +524,7 @@ const Grades = () => {
                           required
                         >
                           {promotions.map((promo) => (
-                            <option key={promo.id} value={promo.value}>
+                            <option key={promo.id} value={promo.name}>
                               {promo.name}
                             </option>
                           ))}
@@ -507,77 +551,28 @@ const Grades = () => {
                         </select>
                       </div>
 
-                      <div className="sm:col-span-3">
+                      <div className="sm:col-span-6">
                         <label
-                          htmlFor="courseId"
+                          htmlFor="teachingUnitId"
                           className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                         >
-                          Cours
+                          Unité d'Enseignement
                         </label>
                         <select
-                          name="courseId"
-                          id="courseId"
+                          name="teachingUnitId"
+                          id="teachingUnitId"
                           className="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                          value={formData.courseId}
+                          value={formData.teachingUnitId}
                           onChange={handleInputChange}
                           required
-                          disabled={!formData.promotionId || !formData.semester}
                         >
-                          <option value="">Sélectionner un cours</option>
-                          {getFilteredCourses().map((course) => (
-                            <option key={course.id} value={course.id}>
-                              {course.name}
+                          <option value="">Sélectionner une UE</option>
+                          {getFilteredTeachingUnits().map((unit) => (
+                            <option key={unit.name} value={unit._id}>
+                              {unit.name} {unit.semester}
                             </option>
                           ))}
                         </select>
-                      </div>
-
-                      <div className="sm:col-span-6">
-                        <label
-                          htmlFor="studentId"
-                          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                        >
-                          Étudiant
-                        </label>
-                        <select
-                          name="studentId"
-                          id="studentId"
-                          className="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                          value={formData.studentId}
-                          onChange={handleInputChange}
-                          required
-                          disabled={!formData.promotionId}
-                        >
-                          <option value="">Sélectionner un étudiant</option>
-                          {getFilteredStudents().map((student) => (
-                            <option key={student.id} value={student.id}>
-                              {student.lastName} {student.firstName}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="sm:col-span-6">
-                        <label
-                          htmlFor="grade"
-                          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                        >
-                          Note (sur 20)
-                        </label>
-                        <div className="relative rounded-md shadow-sm">
-                          <input
-                            type="number"
-                            name="grade"
-                            id="grade"
-                            min="0"
-                            max="20"
-                            step="0.1"
-                            className="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                            value={formData.grade}
-                            onChange={handleInputChange}
-                            required
-                          />
-                        </div>
                       </div>
                     </div>
 
@@ -608,4 +603,4 @@ const Grades = () => {
   );
 };
 
-export default Grades;
+export default Courses;
